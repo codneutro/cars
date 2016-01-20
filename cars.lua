@@ -10,8 +10,8 @@
 --     CONSTANTS     -- 
 -----------------------
 cars = {};
-cars.DEBUG = true;
-cars.TEST = true;
+cars.DEBUG = false;
+cars.TEST = false;
 cars.USE_RANGE = 64;
 
 -----------------------
