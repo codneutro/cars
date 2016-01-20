@@ -56,6 +56,23 @@ function cars.distance(x1, y1, x2, y2)
 end
 
 ----------------------------------------------------------------------
+-- Plays a sound in the surroundings from the specified coordinate  --
+--                                                                  --
+-- @param sfx sound path                                            --
+-- @param x sound x origin position in pixels                       --
+-- @param y sound y origin position in pixels                       --
+-- @param distance the limit of the sound's propagation             --
+----------------------------------------------------------------------
+function cars.sound3(sfx, x, y, distance)
+	for _, id in pairs(player(0, "tableliving")) do
+		if(cars.distance(x, y, player(id, "x"), player(id, "y")) < 
+			distance) then
+			parse("sv_sound2 "..id.." "..sfx);
+		end
+	end
+end
+
+----------------------------------------------------------------------
 -- Returns true if a player is driving a car                        --
 --                                                                  --
 -- @param id player's id                                            --
