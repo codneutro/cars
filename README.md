@@ -11,7 +11,7 @@ This mod allows you to use cars in the game.
 
 # Installation
 Download all of these files in your CS2D Folder <br />
-Edit the CARS_MOD_FOLDER to your own.
+Edit the CARS_MOD_FOLDER variable to your own in the cars.lua file.
 
 # How to spawn cars ?
 local car = Car.new("gfx/car.png", 0, 0, 32, 64, 0, 50); <br />
