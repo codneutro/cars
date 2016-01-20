@@ -10,25 +10,14 @@
 --     CONSTANTS     -- 
 -----------------------
 cars = {};
-cars.DEBUG = true;
 cars.TEST = true;
 cars.USE_RANGE = 64;
+cars.EXPLOSION_RANGE = 96;
 
 -----------------------
 --     VARIABLES     -- 
 -----------------------
 cars.list = {};
-
-----------------------------------------------------------------------
--- Debugging function                                               --
---                                                                  --
--- @param message a debbuging message                               --
-----------------------------------------------------------------------
-function cars.debug(message)
-	if(cars.DEBUG) then
-		msg(string.char(169).."255255255[DEBUG] "..message);
-	end
-end
 
 ----------------------------------------------------------------------
 -- Test function                                                    --
@@ -38,7 +27,8 @@ end
 ----------------------------------------------------------------------
 function cars.test(id, message)
 	if(message == "!spawn") then
-		cars.testCar:spawn(player(id, "x"), player(id, "y"));
+		local c = Car.new("gfx/car.png", 0, 0, 32, 64, 0, 50);
+		c:spawn(player(id, "x"), player(id, "y"));
 	end
 end
 
@@ -64,11 +54,6 @@ end
 -- @param distance the limit of the sound's propagation             --
 ----------------------------------------------------------------------
 function cars.sound3(sfx, x, y, distance)
-	--[[
-		For each player alive if the distance between the origin and him
-		is lower or equal than the distance the player can hear the sound
-	]]--
-
 	for _, id in pairs(player(0, "tableliving")) do
 		if(cars.distance(x, y, player(id, "x"), player(id, "y")) <= 
 			distance) then
@@ -78,10 +63,11 @@ function cars.sound3(sfx, x, y, distance)
 end
 
 ----------------------------------------------------------------------
--- Returns true if a player is driving a car                        --
+-- Returns true and the player car if the specified player is       --
+-- driving                                                          --
 --                                                                  --
 -- @param id player's id                                            --
--- @return true if a player is driving a car                        --
+-- @return true, car if a player is driving a car                   --
 ----------------------------------------------------------------------
 function cars.isDriving(id)
 	for _, car in pairs(cars.list) do
@@ -93,10 +79,10 @@ function cars.isDriving(id)
 end
 
 ----------------------------------------------------------------------
--- Returns true if a player is a bring                              --
+-- Returns true and the driver car if a player is a bring           --
 --                                                                  --
 -- @param id player's id                                            --
--- @return true if a player is a bring                              --
+-- @return true, car if a player is a bring                         --
 ----------------------------------------------------------------------
 function cars.isBring(id)
 	for _, car in pairs(cars.list) do
@@ -123,12 +109,13 @@ function cars.ms100()
 		end
 
 		if(car.health < 200) then
-			car.health = car.health - 5;
-			parse('effect "fire" '..car.x..' '..car.y..' 10, 10');
+			car.health = car.health - 2;
+			parse('effect "fire" '..car.x..' '..car.y..' 5, 5');
 		end
 
 		if(car.health <= 0) then
 			car:destroy();
+			table.remove(cars.list, car.id);
 		end
 	end
 end
@@ -138,13 +125,13 @@ end
 ----------------------------------------------------------------------
 function cars.always()
 	local x, y = 0, 0;
+
 	for _, car in pairs(cars.list) do
-		--// updating rotation
+		--// rotation
 		if(car.driver ~= 0) then
 			car.rot = player(car.driver, "rot");
 		end
 
-		--// updating position
 		if(car.speed ~= 0) then
 			x = car.x + (math.sin(math.rad(car.rot)) * car.speed);
 			y = car.y - (math.cos(math.rad(car.rot)) * car.speed);
@@ -154,17 +141,20 @@ function cars.always()
 				car.x = x;
 				car.y = y;
 			else
-				if(car.speed > 10) then
+				--// sfx
+				if(car.speed > 0 and car.speed < 20) then
 					cars.sound3("cars/car_impact.ogg", car.x, car.y, 256);
-				elseif(car.speed > 20) then
+				elseif(car.speed > 0 and car.speed > 20) then
 					cars.sound3("cars/car_impact_glass.ogg", car.x, car.y, 256);
 				end
+
+				--// impact effect
 				car.gear = 0;
 				car.health = car.health - car.speed * 4;
 				car.speed = math.floor(-car.speed / 2);
-				msg(car.health);
 			end
 
+			--// updating driver + brings
 			parse("setpos "..car.driver.." "..car.x.." "..car.y);
 			for _, bring in pairs(car.brings) do
 				parse("setpos "..bring.." "..car.x.." "..car.y);
@@ -225,7 +215,6 @@ function Car.new(img, x, y, offsetX, offsetY, rot, maxGear, maxBrings, health)
 	c.maxGear = maxGear;
 	c.maxBrings = maxBrings or 4;
 	c.health = health or 500;
-	cars.debug("New car created");
 	return c;
 end
 
@@ -236,21 +225,17 @@ end
 -- @param y car y position in pixels                                --
 ----------------------------------------------------------------------
 function Car:spawn(x, y)
-	--[[
-		Fixing coordinates, and if the car isn't already spawned,
-		then we spawn the car and add it into the cars table.
-	]]--
-
+	--// fixing coordinates
 	if(x and y) then
 		self.x = x + self.offsetX;
 		self.y = y + self.offsetY;
 	end
 
+	--// spawning the car
 	if(not self.imgID) then
 		self.imgID = image(self.img, self.x, self.y, 1);
 		table.insert(cars.list, self);
-		car.id = #cars.list;
-		cars.debug("New car added");
+		self.id = #cars.list;
 	end
 end
 
@@ -261,8 +246,6 @@ function Car:speedUp()
 	if(self.gear < self.maxGear) then
 		self.gear = self.gear + 1;
 		self.speed = self.speed + 3;
-		cars.debug("Current Speed : "..self.speed);
-		cars.debug("Current Gear: "..self.gear);
 	end
 end
 
@@ -273,8 +256,6 @@ function Car:speedDown()
 	if(self.gear > -1) then
 		self.gear = self.gear - 1;
 		self.speed = self.speed - 3;
-		cars.debug("Current Speed : "..self.speed);
-		cars.debug("Current Gear: "..self.gear);
 	end
 end
 
@@ -297,7 +278,6 @@ function Car:removeBring(id)
 		if(bring == id) then
 			table.remove(self.brings, index);
 			parse("speedmod "..id.." 0");
-			cars.debug("Player #"..id.." is not anymore a bring");
 			break;
 		end
 	end
@@ -312,7 +292,18 @@ function Car:addBring(id)
 	if(#self.brings < self.maxBrings) then
 		table.insert(self.brings, id);
 		parse("speedmod "..id.." -100");
-		cars.debug("Player #"..id.." is now a bring");
+	end
+end
+
+----------------------------------------------------------------------
+-- Sets the speed of all brings in the car, driver included !       --
+--                                                                  --
+-- @param speed players speed                                       --
+----------------------------------------------------------------------
+function Car:setBringsSpeed(speed)
+	parse("speedmod "..self.driver.." "..speed);
+	for _, bring in pairs(self.brings) do
+		parse("speedmod "..self.driver.." "..speed);
 	end
 end
 
@@ -321,8 +312,9 @@ end
 ----------------------------------------------------------------------
 function Car:destroy()
 	freeimage(self.imgID);
-	parse("explosion "..self.x.." "..self.y.." 150 100 0");
-	table.remove(cars.list, cars.id);
+	parse("explosion "..self.x.." "..self.y.." "..cars.EXPLOSION_RANGE
+		.." 100 0");
+	self:setBringsSpeed(0);
 end
 
 ----------------------------------------------------------------------
@@ -335,6 +327,8 @@ function cars.serveraction(id, action)
 	local driving, car = cars.isDriving(id);
 	local bring, bringCar = cars.isBring(id);
 
+	--// F2 for accelerate, F3 for deccelerate, 
+	--// F4 for getting in/out the car
 	if(action == 1) then
 		if(driving) then
 			car:speedUp();
@@ -358,7 +352,6 @@ function cars.serveraction(id, action)
 			end
 		end
 	end
-	cars.debug("Player #"..id.." has pressed F"..(action + 1));
 end
 
 ----------------------------------------------------------------------
@@ -377,7 +370,6 @@ function cars.use(id, event, data, x, y)
 		if(b) then
 			car.driver = 0;
 			parse("speedmod "..id.." 0");
-			cars.debug("Player "..id.." has left the car");
 		else
 			for _, car in pairs(cars.list) do
 				if(cars.distance(car.x, car.y, player(id, "x"), 
@@ -388,7 +380,6 @@ function cars.use(id, event, data, x, y)
 					parse("setpos "..id.." "..car.x.." "..car.y);
 					cars.sound3("cars/engine_start.ogg", player(id, "x"), 
 						player(id, "y"), 256);
-					cars.debug("Player "..id.." is now a driver !");
 					break;
 				end
 			end
@@ -399,10 +390,9 @@ end
 ----------------------------------------------------------------------
 -- Main entry point                                                 --
 ----------------------------------------------------------------------
-function main()
+function cars.main()
 	if(cars.TEST) then
 		addhook("say", "cars.test");
-		cars.testCar = Car.new("gfx/car.png", 0, 0, 32, 64, 0, 50);
 	end
 
 	addhook("serveraction", "cars.serveraction");
@@ -411,5 +401,5 @@ function main()
 	addhook("always", "cars.always");
 end
 
-main();
+cars.main();
 
